@@ -1,0 +1,364 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>客户编码查询</title>
+<style>
+:root{--bg:#f6f7f9;--card:#fff;--text:#1d2129;--sub:#6b7280;--line:#e5e7eb;--accent:#2563eb;--warn:#b45309;--warnbg:#fef3c7;--ok:#047857}
+@media (prefers-color-scheme:dark){:root{--bg:#14161a;--card:#1d2026;--text:#e6e8eb;--sub:#9aa3af;--line:#2d323a;--accent:#60a5fa;--warn:#fbbf24;--warnbg:#3a2f12;--ok:#34d399}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--text);font:15px/1.6 -apple-system,"PingFang SC","Microsoft YaHei",sans-serif}
+.wrap{max-width:960px;margin:0 auto;padding:16px}
+h1{font-size:20px;margin:8px 0 0}
+h1 .by{font-size:12px;font-weight:400;color:var(--sub);margin-left:6px}
+.src{font-size:13px;color:var(--sub);margin:1.6em 0 12px}
+.tabs{display:flex;gap:8px;margin-bottom:12px}
+.tab{padding:8px 16px;border:1px solid var(--line);background:var(--card);border-radius:8px;cursor:pointer;color:var(--text)}
+.tab.on{background:var(--accent);color:#fff;border-color:var(--accent)}
+.card{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:14px;margin-bottom:14px}
+textarea{width:100%;min-height:150px;border:1px solid var(--line);border-radius:8px;padding:10px;background:var(--bg);color:var(--text);font:13px/1.5 ui-monospace,Menlo,Consolas,monospace;resize:vertical}
+input[type=text],input[type=password]{border:1px solid var(--line);border-radius:6px;padding:7px 9px;background:var(--bg);color:var(--text);font:inherit}
+button{border:1px solid var(--line);background:var(--card);color:var(--text);border-radius:6px;padding:6px 12px;cursor:pointer;font:inherit}
+button.p{background:var(--accent);color:#fff;border-color:var(--accent)}
+button.d{color:#dc2626}
+button:hover{filter:brightness(.95)}
+table{width:100%;border-collapse:collapse;font-size:14px}
+th,td{text-align:left;padding:6px 8px;border-bottom:1px solid var(--line);vertical-align:top}
+th{color:var(--sub);font-weight:500}
+.unk{color:var(--warn);background:var(--warnbg);border-radius:4px;padding:0 6px}
+.bar{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin:8px 0}
+.sub{color:var(--sub);font-size:13px}
+.num{font-variant-numeric:tabular-nums;white-space:nowrap}
+.hide{display:none}
+.code{font-family:ui-monospace,Menlo,Consolas,monospace}
+.pill{display:inline-block;background:var(--bg);border:1px solid var(--line);border-radius:999px;padding:1px 10px;margin:2px 4px 2px 0;font-size:13px}
+.tw{max-height:420px;overflow:auto}
+.msg{color:var(--ok);font-size:13px}
+</style>
+</head>
+<body>
+<div class="wrap">
+<h1>客户编码查询 <small class="by">By Q.S.H（皇漢）&amp; Claude</small></h1>
+<div class="src">数据来源：劈叉分享讨论进步群  2026.10.15</div>
+<div class="tabs">
+  <button class="tab on" data-t="q">查询</button>
+  <button class="tab" data-t="m">管理对照表</button>
+</div>
+
+<!-- 查询 -->
+<div id="q">
+  <div class="card">
+    <textarea id="inp" placeholder="把内容整段粘贴到这里。支持：&#10;1) 含 SC 编码的任意文字（只提取 SC 后面的编码，其他内容忽略）&#10;2) 直接输入四位号码，例如 5503 0736（空格、逗号或换行分隔）"></textarea>
+    <div class="bar">
+      <button class="p" id="go">查询</button>
+      <button id="clr">清空</button>
+      <span class="sub" id="hint">粘贴后自动查询</span>
+    </div>
+  </div>
+  <div id="out" class="hide">
+    <div class="card">
+      <b>统计</b> <span class="sub" id="tot"></span>
+      <div class="bar"><button id="cpS">复制统计</button><span class="msg" id="m1"></span></div>
+      <table><thead><tr><th>客户</th><th class="num">数量</th></tr></thead><tbody id="stat"></tbody></table>
+    </div>
+    <div class="card">
+      <b>明细</b>
+      <div class="bar"><button id="cpD">复制明细</button><span class="msg" id="m2"></span></div>
+      <div class="tw"><table><thead><tr><th>#</th><th>原编码</th><th>匹配码</th><th>客户</th><th></th></tr></thead><tbody id="det"></tbody></table></div>
+    </div>
+  </div>
+</div>
+
+<!-- 管理 -->
+<div id="m" class="hide">
+  <div class="card" id="lock">
+    <b>管理对照表需要密码</b>
+    <div class="bar">
+      <input type="password" id="pw" placeholder="输入密码" autocomplete="off">
+      <button class="p" id="pwgo">解锁</button>
+      <span class="sub" id="pwmsg" style="color:#dc2626"></span>
+    </div>
+  </div>
+  <div id="adm" class="hide">
+  <div class="card">
+    <b>添加 / 修改</b>
+    <div class="sub">编码填四位数字；特殊的 SCC 系列填完整，如 SCC063、SCC0736。已存在的编码会被覆盖。</div>
+    <div class="bar">
+      <input type="text" id="fk" placeholder="编码" size="12">
+      <input type="text" id="fn" placeholder="客户名称" size="34">
+      <button class="p" id="save">保存</button>
+      <span class="msg" id="m3"></span>
+    </div>
+    <div class="sub">批量添加：每行一条，编码和名称用空格或 Tab 隔开（可直接从 Excel 粘贴）</div>
+    <textarea id="bulk" style="min-height:80px"></textarea>
+    <div class="bar"><button id="bulkGo">批量导入</button></div>
+  </div>
+  <div class="card">
+    <div class="bar">
+      <input type="text" id="flt" placeholder="搜索编码或名称" size="24">
+      <span class="sub" id="cnt"></span>
+      <span style="flex:1"></span>
+      <button id="exp">导出 data.json</button>
+      <button id="imp">导入 JSON</button>
+      <button id="rst" class="d">还原为内置</button>
+      <button id="lockout">锁定</button>
+      <input type="file" id="file" accept=".json" class="hide">
+    </div>
+    <div class="sub">改动保存在当前浏览器里。要让所有设备生效：导出 data.json，上传到 GitHub 仓库，与本页面放在同一目录即可（页面会自动读取）。</div>
+    <div class="tw"><table><thead><tr><th>编码</th><th>客户</th><th></th></tr></thead><tbody id="list"></tbody></table></div>
+  </div>
+  </div>
+</div>
+</div>
+
+<script>
+// ==CORE==
+const DEFAULT_DATA = {
+"0083":"小米","0173":"36氪","0292":"北京日报","0293":"北京日报","0583":"上海铁路局","0703":"网易","0823":"财联社/央广网","1103":"财新","1163":"《支部生活》杂志社","1253":"河南卫视","1433":"深圳信新智本","1473":"中国黄河电视台","1733":"北京一兮文化","1833":"中国日报社","2003":"环球网","2013":"深圳航空","2103":"财经杂志","2112":"百度","2113":"百度","2115":"央视国际、搜狐","2133":"中国教育报刊社","2243":"新华网","2653":"广州日报","2713":"广东城乡规划设计研究院","2833":"网易/腾讯","2983":"上海少年儿童出版社有限公司","3083":"时尚旅游","3423":"云南日报","3553":"凤凰飞扬/悦游杂志","3742":"南方日报","3743":"南方日报","3813":"文汇报","3833":"中国青年报社","3863":"经济日报","4263":"科技日报","4473":"湖南教育报刊","4513":"厦航","4683":"中纪委下属新闻中心","4713":"世界知识出版社","4743":"重庆课堂内外文化","5183":"上观新闻","5063":"江苏科学传播中心","5523":"成都市青藤卷语动漫制作有限公司","5433":"中国银行保险报","5443":"cbn data","5503":"携程","5803":"央广网","5883":"上海广播电视台","5973":"中宣部舆情研究中心","6253":"日知图书","6433":"中经网","6513":"星行客","6543":"北京出版集团教材分公司","6563":"潮新闻","6643":"搜狐","6743":"中国企业家杂志","6763":"潮新闻","6833":"人民教育出版社有限公司","6923":"上海图域数码","7183":"北京意林","7243":"China daily","7443":"中国国家地理（网络）","7693":"网易·看客","7723":"中国国际中文教育基金会","7743":"京版若晴科创文化发展（北京）有限公司","7853":"三联生活周刊","7993":"高等教育出版社有限公司","8123":"国家电网","8203":"博客cover","8213":"中国银河证券","8333":"新华网","8353":"澎湃","8542":"中南出版传媒集团","8543":"中南出版传媒集团股份有限公司","8643":"教育科学出版社有限公司","8653":"gettyimages","8703":"中国大百科全书","8823":"极氪","8883":"平安保险","9553":"广天合","9573":"山东省总工会/江苏新华","9873":"北京青年报","9993":"黑龙江广播电视台",
+"1742":"北京对外文化交流中心","3002":"四川省情杂志社有限责任公司","5953":"中华遗产（停刊）","6093":"中国国家地理（实体）","7893":"吉林润桥文化科技有限公司","0736":"中央电视台",
+"SCC063":"腾讯新闻","SCC0729":"中央广播电视总台","SCC0736":"中央电视台","SCC0737":"中央电视台","SCC0738":"中央电视台"
+};
+const UNKNOWN = "暂时未知";
+
+// 从文本中提取并匹配。返回 [{raw,key,name|null}]
+function extract(text, map){
+  const items = [];
+  const re = /(?<![A-Za-z])SC(C?)(\d+)/gi;
+  let m;
+  while((m = re.exec(text)) !== null){
+    const isC = m[1] !== "";
+    const d = m[2];
+    let key = null;
+    if(isC){
+      for(const k of ["SCC"+d.slice(0,4), "SCC"+d.slice(0,3)]){
+        if(map[k] !== undefined){ key = k; break; }
+      }
+      if(!key) key = "SCC"+d.slice(0,4);
+    } else {
+      key = d.slice(0,4);
+    }
+    items.push({raw:m[0], key, name: map[key] !== undefined ? map[key] : null});
+  }
+  if(items.length === 0){
+    const re2 = /(?<!\d)\d{4}(?!\d)/g;
+    while((m = re2.exec(text)) !== null){
+      const d = m[0];
+      const name = map[d] !== undefined ? map[d] : (map["SCC"+d] !== undefined ? map["SCC"+d] : null);
+      items.push({raw:d, key:d, name});
+    }
+  }
+  return items;
+}
+
+// 纯 JS 的 SHA-256（不依赖 https 环境），用于密码校验
+function sha256(str){
+  const rotr=(n,x)=>(x>>>n)|(x<<(32-n));
+  const K=[], H=[];
+  for(let p=2,n=0;n<64;p++){
+    let pr=true; for(let d=2;d*d<=p;d++) if(p%d===0){pr=false;break;}
+    if(pr){ if(n<8) H[n]=(Math.pow(p,.5)%1*4294967296)|0; K[n]=(Math.pow(p,1/3)%1*4294967296)|0; n++; }
+  }
+  const bytes=[...new TextEncoder().encode(str)];
+  const bitLen=bytes.length*8;
+  bytes.push(0x80); while(bytes.length%64!==56) bytes.push(0);
+  for(let i=7;i>=0;i--) bytes.push(i>=4?0:(bitLen>>>(i*8))&255);
+  for(let i=0;i<bytes.length;i+=64){
+    const w=[];
+    for(let j=0;j<16;j++) w[j]=(bytes[i+j*4]<<24)|(bytes[i+j*4+1]<<16)|(bytes[i+j*4+2]<<8)|bytes[i+j*4+3];
+    for(let j=16;j<64;j++){
+      const s0=rotr(7,w[j-15])^rotr(18,w[j-15])^(w[j-15]>>>3);
+      const s1=rotr(17,w[j-2])^rotr(19,w[j-2])^(w[j-2]>>>10);
+      w[j]=(w[j-16]+s0+w[j-7]+s1)|0;
+    }
+    let [a,b,c,d,e,f,g,h]=H;
+    for(let j=0;j<64;j++){
+      const S1=rotr(6,e)^rotr(11,e)^rotr(25,e), ch=(e&f)^(~e&g);
+      const t1=(h+S1+ch+K[j]+w[j])|0;
+      const S0=rotr(2,a)^rotr(13,a)^rotr(22,a), mj=(a&b)^(a&c)^(b&c);
+      const t2=(S0+mj)|0;
+      h=g;g=f;f=e;e=(d+t1)|0;d=c;c=b;b=a;a=(t1+t2)|0;
+    }
+    H[0]=(H[0]+a)|0;H[1]=(H[1]+b)|0;H[2]=(H[2]+c)|0;H[3]=(H[3]+d)|0;
+    H[4]=(H[4]+e)|0;H[5]=(H[5]+f)|0;H[6]=(H[6]+g)|0;H[7]=(H[7]+h)|0;
+  }
+  return H.map(x=>(x>>>0).toString(16).padStart(8,"0")).join("");
+}
+
+function stats(items){
+  const c = new Map();
+  for(const it of items){
+    const n = it.name === null ? UNKNOWN : it.name;
+    c.set(n, (c.get(n)||0)+1);
+  }
+  return [...c.entries()].sort((a,b)=> (a[0]===UNKNOWN) - (b[0]===UNKNOWN) || b[1]-a[1] || a[0].localeCompare(b[0],"zh"));
+}
+// ==/CORE==
+
+const LS = "client_lookup_v1";
+let base = Object.assign({}, DEFAULT_DATA);   // 内置 + data.json
+let local = {set:{}, del:[]};                 // 本机修改
+try{ const s = JSON.parse(localStorage.getItem(LS)||"null"); if(s && s.set) local = {set:s.set, del:s.del||[]}; }catch(e){}
+let MAP = {};
+function rebuild(){
+  MAP = Object.assign({}, base, local.set);
+  for(const k of local.del) delete MAP[k];
+}
+function persist(){ try{ localStorage.setItem(LS, JSON.stringify(local)); }catch(e){} }
+rebuild();
+
+// 若同目录有 data.json（部署在网站上时），用它作为基础表
+fetch("data.json",{cache:"no-store"}).then(r=>r.ok?r.json():null).then(j=>{
+  if(j && typeof j==="object"){ base = Object.assign({}, j); rebuild(); renderList(); run(); }
+}).catch(()=>{});
+
+const $ = id => document.getElementById(id);
+const esc = s => String(s).replace(/[&<>"]/g, c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+
+// 标签切换
+document.querySelectorAll(".tab").forEach(b=>b.onclick=()=>{
+  document.querySelectorAll(".tab").forEach(x=>x.classList.toggle("on",x===b));
+  $("q").classList.toggle("hide", b.dataset.t!=="q");
+  $("m").classList.toggle("hide", b.dataset.t!=="m");
+  if(b.dataset.t==="m"){ refreshLock(); renderList(); }
+});
+
+// 管理页密码（只存校验值，不存明文）。要改密码：把下面这串换成新密码的 SHA-256
+const PW_HASH = "9a9f52cb22b5d1f51a5de586eb9514f136bc6d107e66de4daec56b0015934a97";
+function unlocked(){ try{ return sessionStorage.getItem("cl_ok")==="1"; }catch(e){ return false; } }
+function refreshLock(){
+  const ok = unlocked();
+  $("lock").classList.toggle("hide", ok);
+  $("adm").classList.toggle("hide", !ok);
+  if(!ok) setTimeout(()=>$("pw").focus(),0);
+}
+function tryUnlock(){
+  if(sha256($("pw").value) === PW_HASH){
+    try{ sessionStorage.setItem("cl_ok","1"); }catch(e){}
+    $("pw").value=""; $("pwmsg").textContent="";
+    refreshLock(); renderList();
+  } else { $("pwmsg").textContent = "密码不对"; $("pw").select(); }
+}
+$("pwgo").onclick = tryUnlock;
+$("pw").addEventListener("keydown", e=>{ if(e.key==="Enter") tryUnlock(); });
+$("lockout").onclick = ()=>{ try{ sessionStorage.removeItem("cl_ok"); }catch(e){} refreshLock(); };
+
+// 查询
+let lastItems = [];
+function run(){
+  const text = $("inp").value;
+  if(!text.trim()){ $("out").classList.add("hide"); lastItems=[]; return; }
+  const items = extract(text, MAP);
+  lastItems = items;
+  if(!items.length){
+    $("out").classList.remove("hide");
+    $("tot").textContent = "";
+    $("stat").innerHTML = '<tr><td colspan="2" class="sub">没有找到 SC 编码或四位号码</td></tr>';
+    $("det").innerHTML = "";
+    return;
+  }
+  $("out").classList.remove("hide");
+  const st = stats(items);
+  $("tot").textContent = "共 "+items.length+" 条，"+st.length+" 个客户";
+  $("stat").innerHTML = st.map(([n,c])=>'<tr><td>'+(n===UNKNOWN?'<span class="unk">'+UNKNOWN+'</span>':esc(n))+'</td><td class="num">'+c+' 份</td></tr>').join("");
+  $("det").innerHTML = items.map((it,i)=>'<tr><td class="num">'+(i+1)+'</td><td class="code">'+esc(it.raw)+'</td><td class="code">'+esc(it.key)+'</td><td>'+(it.name===null?'<span class="unk">'+UNKNOWN+'</span>':esc(it.name))+'</td><td>'+(it.name===null?'<button data-add="'+esc(it.key)+'">添加</button>':'')+'</td></tr>').join("");
+}
+$("inp").addEventListener("input", run);
+$("go").onclick = run;
+$("clr").onclick = ()=>{ $("inp").value=""; run(); };
+$("det").addEventListener("click", e=>{
+  const k = e.target.dataset && e.target.dataset.add;
+  if(!k) return;
+  document.querySelector('.tab[data-t="m"]').click();
+  $("fk").value = k; $("fn").value = ""; $("fn").focus();
+});
+function flash(id,t){ $(id).textContent=t; setTimeout(()=>$(id).textContent="",2500); }
+function copy(text,id){
+  const done=()=>flash(id,"已复制");
+  if(navigator.clipboard) navigator.clipboard.writeText(text).then(done,()=>fallback());
+  else fallback();
+  function fallback(){ const t=document.createElement("textarea"); t.value=text; document.body.appendChild(t); t.select(); try{document.execCommand("copy");done();}catch(e){} t.remove(); }
+}
+$("cpS").onclick = ()=>copy(stats(lastItems).map(([n,c])=>n+" "+c+" 份").join("\n"),"m1");
+$("cpD").onclick = ()=>copy(lastItems.map((it,i)=>(i+1)+"\t"+it.raw+"\t"+(it.name===null?UNKNOWN:it.name)).join("\n"),"m2");
+
+// 管理
+function sortedKeys(){
+  return Object.keys(MAP).sort((a,b)=>{
+    const sa=a.startsWith("SCC"), sb=b.startsWith("SCC");
+    return sa-sb || a.localeCompare(b);
+  });
+}
+function renderList(){
+  const f = $("flt").value.trim().toLowerCase();
+  const keys = sortedKeys().filter(k=>!f || k.toLowerCase().includes(f) || MAP[k].toLowerCase().includes(f));
+  $("cnt").textContent = "共 "+Object.keys(MAP).length+" 条"+(f?"，显示 "+keys.length+" 条":"");
+  $("list").innerHTML = keys.map(k=>'<tr><td class="code">'+esc(k)+'</td><td>'+esc(MAP[k])+'</td><td class="num"><button data-e="'+esc(k)+'">编辑</button> <button class="d" data-d="'+esc(k)+'">删除</button></td></tr>').join("");
+}
+$("flt").addEventListener("input", renderList);
+function normKey(k){
+  k = k.trim().toUpperCase().replace(/\s+/g,"");
+  return k;
+}
+function setEntry(k,n){
+  k = normKey(k); n = n.trim();
+  if(!/^(\d{4}|SCC\d{3,4})$/.test(k)) return "编码格式不对：" + k;
+  if(!n) return "名称不能为空";
+  local.set[k] = n;
+  local.del = local.del.filter(x=>x!==k);
+  return null;
+}
+$("save").onclick = ()=>{
+  const err = setEntry($("fk").value, $("fn").value);
+  if(err){ alert(err); return; }
+  persist(); rebuild(); renderList(); run();
+  $("fk").value=""; $("fn").value=""; flash("m3","已保存");
+};
+$("bulkGo").onclick = ()=>{
+  const lines = $("bulk").value.split(/\r?\n/).map(s=>s.trim()).filter(Boolean);
+  let ok=0, bad=[];
+  for(const ln of lines){
+    const m = ln.match(/^(\S+)[\s,，]+(.+)$/);
+    const err = m ? setEntry(m[1], m[2]) : "格式不对：" + ln;
+    if(err) bad.push(err); else ok++;
+  }
+  persist(); rebuild(); renderList(); run();
+  $("bulk").value = bad.length ? bad.join("\n") : "";
+  alert("导入 "+ok+" 条" + (bad.length? "，"+bad.length+" 条失败（已留在输入框）":""));
+};
+$("list").addEventListener("click", e=>{
+  const ek = e.target.dataset.e, dk = e.target.dataset.d;
+  if(ek){ $("fk").value=ek; $("fn").value=MAP[ek]; $("fn").focus(); }
+  if(dk && confirm("删除 "+dk+" "+MAP[dk]+" ？")){
+    delete local.set[dk];
+    if(base[dk]!==undefined && !local.del.includes(dk)) local.del.push(dk);
+    persist(); rebuild(); renderList(); run();
+  }
+});
+$("exp").onclick = ()=>{
+  const obj = {}; sortedKeys().forEach(k=>obj[k]=MAP[k]);
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(new Blob([JSON.stringify(obj,null,1)],{type:"application/json"}));
+  a.download = "data.json"; a.click();
+};
+$("imp").onclick = ()=>$("file").click();
+$("file").onchange = e=>{
+  const f = e.target.files[0]; if(!f) return;
+  const r = new FileReader();
+  r.onload = ()=>{
+    try{
+      const j = JSON.parse(r.result); let ok=0;
+      for(const [k,v] of Object.entries(j)){ if(!setEntry(k,String(v))) ok++; }
+      persist(); rebuild(); renderList(); run(); alert("导入 "+ok+" 条");
+    }catch(err){ alert("JSON 读取失败"); }
+  };
+  r.readAsText(f); e.target.value="";
+};
+$("rst").onclick = ()=>{
+  if(!confirm("清除本机所有修改，还原为内置对照表？")) return;
+  local = {set:{},del:[]}; persist(); rebuild(); renderList(); run();
+};
+renderList();
+</script>
+</body>
+</html>
